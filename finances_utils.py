@@ -6,6 +6,8 @@ def calculate_avg_price(df: pd.DataFrame) -> pd.DataFrame:
     """Given a pd.DataFrame with stocks transactional data, calculate the average price
     for each row.
     """
+    df = df.sort_values(["ticker", "date"], ascending=True)
+
     for _, group in df.groupby("ticker"):
         avg_price = 0.0
         quantity = 0
