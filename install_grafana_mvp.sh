@@ -1,9 +1,20 @@
 #!/bin/bash
 
-# Update package list and install Grafana
+# Update package list
 echo "Updating package list..."
 sudo apt-get update
 
+# Add Grafana's APT repository
+echo "Adding Grafana's APT repository..."
+sudo apt-get install -y software-properties-common
+wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+
+# Update package list again after adding Grafana repository
+echo "Updating package list after adding Grafana repository..."
+sudo apt-get update
+
+# Install Grafana
 echo "Installing Grafana..."
 sudo apt-get install -y grafana
 
