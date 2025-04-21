@@ -81,13 +81,15 @@ def get_stocks_report(target_year: str) -> None:
 
 
 def _get_report_txt_msg(x, target_year: str):
-    base_msg = x["ticker"] + " - "
-    if x[f"current_quantity_{target_year}"] > 0:
-        base_msg += str(int(x[f"current_quantity_{target_year}"])) + " ações emitidas. "
-    if x[f"profit_{target_year}"] < 0:
-        base_msg += f"Prejuizo acumulado de -R${-x[f"profit_{target_year}"]:.2f}."
-    if x[f"profit_{target_year}"] > 0:
-        base_msg += f"Lucro acumulado de R${x[f"profit_{target_year}"]:.2f}."
+    base_msg = f"{x['ticker']} - "
+    match x[f"current_quantity_{target_year}"]:
+        case quantity if quantity > 0:
+            base_msg += f"{int(quantity)} ações emitidas. "
+    match x[f"profit_{target_year}"]:
+        case profit if profit < 0:
+            base_msg += f"Prejuízo acumulado de -R${-profit:.2f}."
+        case profit if profit > 0:
+            base_msg += f"Lucro acumulado de R${profit:.2f}."
     return base_msg.rstrip(" - ")
 
 
