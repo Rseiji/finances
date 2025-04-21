@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 
 PWD = os.getenv("postgres_pwd")
-CONN_STR = f"postgresql+psycopg2://postgres:{PWD}@localhost:5432/finances"
+CONN_STR = f"postgresql+psycopg2://postgres:rafael26@localhost:5432/finances"
 
 
 def persist_dataframe_to_database(

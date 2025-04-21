@@ -1,4 +1,5 @@
 """Utilities to help in operational activities."""
+
 import pandas as pd
 
 
@@ -15,20 +16,21 @@ def calculate_avg_price(df: pd.DataFrame) -> pd.DataFrame:
         for idx, row in group.iterrows():
             q = row["quantity"]
             p = row["price"]
+            t = row["taxes"]
 
             if q > 0:
-                total_cost = avg_price * quantity + p * q
+                total_cost = avg_price * quantity + p * q + t
                 quantity += q
                 avg_price = total_cost / quantity if quantity > 0 else 0
-                profit = 0.0
+                # profit = 0.0
             else:
                 sale_qty = -q
-                profit = (p - avg_price) * sale_qty
+                # profit = (p - avg_price) * sale_qty
                 quantity -= sale_qty
 
             df.loc[idx, "avg_price"] = avg_price
             df.loc[idx, "current_quantity"] = quantity
-            df.loc[idx, "profit"] = profit
+            # df.loc[idx, "profit"] = profit
     return df
 
 
@@ -64,9 +66,10 @@ def process_new_trades(
     for idx, row in df_new.iterrows():
         q: float = row["quantity"]
         p: float = row["price"]
+        t: float = row["taxes"]
 
         if q > 0:
-            total_cost: float = avg_price * quantity + p * q
+            total_cost: float = avg_price * quantity + p * q + t
             quantity += q
             avg_price = total_cost / quantity if quantity > 0 else 0
         else:
