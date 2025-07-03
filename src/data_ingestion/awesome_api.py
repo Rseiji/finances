@@ -45,9 +45,8 @@ def get_currency_price(
                 data = df.assign(
                     timestamp=lambda df: pd.to_datetime(df["timestamp"], unit="s"))
                 return data
-            else:
-                missing = required_columns - set(df.columns)
-                logging.warning(f"Missing columns in API response: {missing}")
+            missing = required_columns - set(df.columns)
+            logging.warning(f"Missing columns in API response: {missing}")
     except Exception as e:
         logging.error(f"Error fetching currency price: {e}")
         return None
