@@ -7,7 +7,13 @@ CREATE TABLE crypto.deposits (
     _processed_at TIMESTAMP
 );
 
-CREATE TABLE crypto.usdbrl (
+CREATE TABLE currencies.usdbrl (
+    date DATE,
+    brl_value FLOAT,
+    _processed_at TIMESTAMP
+);
+
+CREATE TABLE currencies.jpybrl (
     date DATE,
     brl_value FLOAT,
     _processed_at TIMESTAMP
