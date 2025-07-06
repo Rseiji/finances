@@ -1,21 +1,35 @@
+CREATE SCHEMA IF NOT EXISTS currencies;
+
+CREATE TABLE currencies.usdbrl (
+    date DATE,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
+CREATE TABLE currencies.jpybrl (
+    date DATE,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
+CREATE TABLE currencies.btcbrl (
+    date DATE,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
+CREATE TABLE currencies.ethbrl (
+    date DATE,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
 CREATE SCHEMA crypto;
 
 CREATE TABLE crypto.deposits (
     deposit_date DATE,
     value_brl FLOAT,
     exchange_name TEXT,
-    _processed_at TIMESTAMP
-);
-
-CREATE TABLE currencies.usdbrl (
-    date DATE,
-    brl_value FLOAT,
-    _processed_at TIMESTAMP
-);
-
-CREATE TABLE currencies.jpybrl (
-    date DATE,
-    brl_value FLOAT,
     _processed_at TIMESTAMP
 );
 
