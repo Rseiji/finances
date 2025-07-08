@@ -1,10 +1,13 @@
-import requests
+import hashlib
 from datetime import datetime
 from functools import partial
-import os
+
 import pandas as pd
+import requests
 
 BASE_URL = "https://api.binance.com/api/v3/"
+
+format_date = partial(lambda x: int(datetime.strptime(x, "%Y-%m-%d").timestamp() * 1000))
 
 
 def get_binance_close_prices(
@@ -14,8 +17,6 @@ def get_binance_close_prices(
     **_: dict[str, str] | None
 ) -> list[tuple[str, float]]:
     """Fetch daily close prices for a given symbol between start_str and end_str."""
-    format_date = partial(lambda x: int(datetime.strptime(x, "%Y-%m-%d").timestamp() * 1000))
-
     response = requests.get(
         os.path.join(BASE_URL, "klines"),
         params={
