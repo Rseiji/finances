@@ -13,7 +13,7 @@ import pandas as pd
 
 SWAP_CATEGS = ['Transaction Spend', 'Transaction Buy', 'Transaction Fee']
 SWAP_TABLE_COLS = [
-    "UTC_Time", "swap_date", "received_amount", "paid_taxes_amount", "paid_amount",
+    "UTC_Time", "date", "received_amount", "paid_taxes_amount", "paid_amount",
     "received_currency", "paid_taxes_currency", "paid_currency", "exchange_name"
 ]
 
@@ -24,7 +24,7 @@ def get_brl_deposits(df, coin: str = "BRL") -> pd.DataFrame:
     return (
         df.query(f"Operation == 'Deposit' & Coin == '{coin}'")
         .assign(
-            deposit_date=lambda df: pd.to_datetime(df["UTC_Time"], format="%Y-%m-%d %H:%M:%S").dt.date
+            date=lambda df: pd.to_datetime(df["UTC_Time"], format="%Y-%m-%d %H:%M:%S").dt.date
         )
         .rename(
             columns={
@@ -32,7 +32,7 @@ def get_brl_deposits(df, coin: str = "BRL") -> pd.DataFrame:
             }
         )
         .assign(exchange_name="binance")
-    )[["UTC_Time", "deposit_date", "value_brl", "exchange_name"]]
+    )[["UTC_Time", "date", "value_brl", "exchange_name"]]
 
 
 def get_binance_earn(df) -> pd.DataFrame:
@@ -51,13 +51,13 @@ def get_binance_earn(df) -> pd.DataFrame:
             source=lambda x: x["Operation"].apply(
                 lambda op: "binance_staking" if op == "Staking Rewards" else "binance_simple_earn"
             ),
-            earning_date=lambda df: pd.to_datetime(
+            date=lambda df: pd.to_datetime(
                 df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
             ).dt.date,
         )
     )[[
         "UTC_Time",
-        "earning_date",
+        "date",
         "earning_currency",
         "source",
         "earning_amount",
@@ -97,7 +97,7 @@ def solve_swap_2_or_3_rows(df) -> pd.DataFrame:
         .reset_index()
         .fillna(0.0)
         .assign(
-            swap_date=lambda df: pd.to_datetime(
+            date=lambda df: pd.to_datetime(
                 df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
             ).dt.date,
             exchange_name="binance",
@@ -127,7 +127,7 @@ def solve_swap_2_or_3_rows(df) -> pd.DataFrame:
 
 
 def get_manual_input_needed_timestamps(df: pd.DataFrame, valid_swaps: pd.DataFrame) -> pd.DataFrame:
-    df["swap_date"] = pd.to_datetime(
+    df["date"] = pd.to_datetime(
         df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
     ).dt.date
     result = df.query("Operation.isin(@SWAP_CATEGS)").merge(valid_swaps[["UTC_Time"]].drop_duplicates(), how="left", indicator=True).query(
@@ -146,7 +146,7 @@ def get_airdrop_assets(df):
             }
         )
         .assign(
-            swap_date=lambda df: pd.to_datetime(
+            date=lambda df: pd.to_datetime(
                 df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
             ).dt.date,
             paid_taxes_amount=0,
@@ -177,7 +177,7 @@ def solve_binance_convert(df) -> pd.DataFrame:
         }))
         .reset_index()
         .assign(
-            swap_date=lambda df: pd.to_datetime(df["UTC_Time"], format="%Y-%m-%d %H:%M:%S").dt.date,
+            date=lambda df: pd.to_datetime(df["UTC_Time"], format="%Y-%m-%d %H:%M:%S").dt.date,
             exchange_name="binance",
             paid_taxes_amount=0,
             paid_taxes_currency=None,

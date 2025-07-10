@@ -1,3 +1,4 @@
+-- CURRENCIES
 CREATE SCHEMA IF NOT EXISTS currencies;
 
 CREATE TABLE currencies.usdbrl (
@@ -24,17 +25,20 @@ CREATE TABLE currencies.ethbrl (
     _processed_at TIMESTAMP
 );
 
+-- CRYPTO
 CREATE SCHEMA crypto;
 
-CREATE TABLE crypto.deposits (
-    deposit_date DATE,
+CREATE TABLE crypto.brl_deposits (
+    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    date DATE,
     value_brl FLOAT,
     exchange_name TEXT,
     _processed_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS crypto.swaps (
-    swap_date DATE,
+    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    date DATE,
     received_amount DOUBLE PRECISION NOT NULL,
     paid_taxes_amount DOUBLE PRECISION NOT NULL,
     paid_amount DOUBLE PRECISION NOT NULL,
@@ -46,7 +50,8 @@ CREATE TABLE IF NOT EXISTS crypto.swaps (
 );
 
 CREATE TABLE crypto.earnings (
-    earning_date DATE NOT NULL,
+    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    date DATE NOT NULL,
     earning_currency TEXT NOT NULL,
     source TEXT NOT NULL,
     earning_amount DOUBLE PRECISION NOT NULL,
@@ -54,13 +59,15 @@ CREATE TABLE crypto.earnings (
 );
 
 CREATE TABLE crypto.withdraws (
-    withdraw_date DATE NOT NULL,
+    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    date DATE NOT NULL,
     amount DOUBLE PRECISION NOT NULL,
     tax DOUBLE PRECISION NOT NULL,
     currency_amount TEXT NOT NULL,
     currency_tax TEXT NOT NULL,
     source TEXT NOT NULL,
-    destiny TEXT NOT NULL
+    destiny TEXT NOT NULL,
+    _processed_at TIMESTAMP
 );
 
 CREATE SCHEMA stocks;
