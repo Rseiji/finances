@@ -187,20 +187,51 @@ def solve_binance_convert(df) -> pd.DataFrame:
 
 
 def get_remaining_binance_convert_utcs(df, solved_binance_convert):
+    """Return binance convert records that were not parsed and should be checked manually."""
     all_convert_utcs = set(df[df["Operation"] == "Binance Convert"]["UTC_Time"])
     parsed_convert_utcs = set(solved_binance_convert["UTC_Time"])
     not_parsed_binance_convert = all_convert_utcs - parsed_convert_utcs
     return df.query("Operation == 'Binance Convert' and UTC_Time.isin(@not_parsed_binance_convert)")
 
 
-def get_remaining_records(df, *args):
-    # Pick all the keys UTC_Time from the args and remove from df
+def get_remaining_records(df, **kwargs):
+    """Return the remaining records."""
     remaining_utcs = set(df["UTC_Time"])
-    for arg in args:
-        if isinstance(arg, pd.DataFrame):
-            remaining_utcs -= set(arg["UTC_Time"])
-        elif isinstance(arg, pd.Series):
-            remaining_utcs -= set(arg)
-        else:
-            raise ValueError(f"Unsupported type {type(arg)} in args")
+    for _, table in kwargs.items():
+        remaining_utcs -= set(table["UTC_Time"])
     return df[df["UTC_Time"].isin(remaining_utcs)].reset_index(drop=True)
+
+
+def parse_binance_report(df):
+    """Parse the Binance report and return a dictionary with the relevant data."""
+    steps = [
+        ("default_swaps", solve_swap_2_or_3_rows),
+        ("earn", get_binance_earn),
+        ("airdrops", get_airdrop_assets),
+        ("deposits", get_brl_deposits),
+        ("earn_subscription", lambda df: df.query("Operation == 'Simple Earn Flexible Subscription'")),
+        ("converts", solve_binance_convert),
+        ("withdraws", lambda df: df.query("Operation == 'Withdraw'")),
+    ]
+
+    results = {}
+    for key, func in steps:
+        results[key] = func(df)
+
+    results["manual_input_swaps"] = get_manual_input_needed_timestamps(
+        df, results["default_swaps"]
+    )
+    results["remaining_converts"] = get_remaining_binance_convert_utcs(
+        df, results["converts"]
+    )
+
+    results["remaining_records"] = get_remaining_records(
+        df, **results
+    )
+
+    all_keys = set()
+    for key, table in results.items():
+        all_keys.update(set(table.UTC_Time.unique()))
+    if not (all_keys == set(df.UTC_Time.unique())):
+        raise ValueError(f"Missing keys in results: {set(df.UTC_Time.unique()) - all_keys}")
+    return results
