@@ -29,7 +29,7 @@ CREATE TABLE currencies.ethbrl (
 CREATE SCHEMA crypto;
 
 CREATE TABLE crypto.brl_deposits (
-    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    id TEXT NOT NULL PRIMARY KEY,
     date DATE,
     value_brl FLOAT,
     exchange_name TEXT,
@@ -37,7 +37,7 @@ CREATE TABLE crypto.brl_deposits (
 );
 
 CREATE TABLE IF NOT EXISTS crypto.swaps (
-    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    id TEXT NOT NULL PRIMARY KEY,
     date DATE,
     received_amount DOUBLE PRECISION NOT NULL,
     paid_taxes_amount DOUBLE PRECISION NOT NULL,
@@ -50,16 +50,16 @@ CREATE TABLE IF NOT EXISTS crypto.swaps (
 );
 
 CREATE TABLE crypto.earnings (
-    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    id TEXT NOT NULL PRIMARY KEY,
     date DATE NOT NULL,
-    earning_currency TEXT NOT NULL,
+    currency TEXT NOT NULL,
     source TEXT NOT NULL,
     earning_amount DOUBLE PRECISION NOT NULL,
     _processed_at TIMESTAMP
 );
 
 CREATE TABLE crypto.withdraws (
-    utc_time_string_key TEXT NOT NULL PRIMARY KEY,
+    id TEXT NOT NULL PRIMARY KEY,
     date DATE NOT NULL,
     amount DOUBLE PRECISION NOT NULL,
     tax DOUBLE PRECISION NOT NULL,

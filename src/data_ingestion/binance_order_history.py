@@ -9,11 +9,12 @@ from datetime import datetime
 from functools import partial
 
 import pandas as pd
+from ..utils import persist_dataframe_to_database
 
 
 SWAP_CATEGS = ['Transaction Spend', 'Transaction Buy', 'Transaction Fee']
 SWAP_TABLE_COLS = [
-    "UTC_Time", "date", "received_amount", "paid_taxes_amount", "paid_amount",
+    "id", "date", "received_amount", "paid_taxes_amount", "paid_amount",
     "received_currency", "paid_taxes_currency", "paid_currency", "exchange_name"
 ]
 
@@ -24,7 +25,7 @@ def get_brl_deposits(df, coin: str = "BRL") -> pd.DataFrame:
     return (
         df.query(f"Operation == 'Deposit' & Coin == '{coin}'")
         .assign(
-            date=lambda df: pd.to_datetime(df["UTC_Time"], format="%Y-%m-%d %H:%M:%S").dt.date
+            date=lambda df: pd.to_datetime(df["id"], format="%Y-%m-%d %H:%M:%S").dt.date
         )
         .rename(
             columns={
@@ -32,7 +33,7 @@ def get_brl_deposits(df, coin: str = "BRL") -> pd.DataFrame:
             }
         )
         .assign(exchange_name="binance")
-    )[["UTC_Time", "date", "value_brl", "exchange_name"]]
+    )[["id", "date", "value_brl", "exchange_name"]]
 
 
 def get_binance_earn(df) -> pd.DataFrame:
@@ -44,7 +45,7 @@ def get_binance_earn(df) -> pd.DataFrame:
     staking_earns = (
         df.query("Operation.isin(@earn_categories)")
         .rename(columns={
-            "Coin": "earning_currency",
+            "Coin": "currency",
             "Change": "earning_amount",
         })
         .assign(
@@ -52,13 +53,13 @@ def get_binance_earn(df) -> pd.DataFrame:
                 lambda op: "binance_staking" if op == "Staking Rewards" else "binance_simple_earn"
             ),
             date=lambda df: pd.to_datetime(
-                df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
+                df["id"], format="%Y-%m-%d %H:%M:%S"
             ).dt.date,
         )
     )[[
-        "UTC_Time",
+        "id",
         "date",
-        "earning_currency",
+        "currency",
         "source",
         "earning_amount",
     ]]
@@ -68,7 +69,7 @@ def get_binance_earn(df) -> pd.DataFrame:
 def _get_dates_with_clean_swap(df) -> pd.DataFrame:
     swap_buy_count = (
         df.query("Operation.isin(@SWAP_CATEGS)")
-        .groupby("UTC_Time")
+        .groupby("id")
         .agg({"Operation": ["nunique", "size"]})
         .reset_index()
     )
@@ -76,8 +77,8 @@ def _get_dates_with_clean_swap(df) -> pd.DataFrame:
     swap_buy_count = swap_buy_count[
         (swap_buy_count[("Operation", "nunique")] == swap_buy_count[("Operation", "size")])
         & (swap_buy_count[("Operation", "nunique")].isin([2, 3]))
-    ][["UTC_Time"]]
-    swap_buy_count.columns = ["UTC_Time"]
+    ][["id"]]
+    swap_buy_count.columns = ["id"]
     return swap_buy_count
 
 
@@ -85,20 +86,19 @@ def solve_swap_2_or_3_rows(df) -> pd.DataFrame:
     result = (
         df.merge(_get_dates_with_clean_swap(df))
         .groupby(
-            ["User_ID", "UTC_Time", "Account", "Operation", "Coin"],
+            ["User_ID", "id", "Account", "Operation", "Coin"],
             as_index=False
         )
         .sum()
         .pivot(
-            index=["User_ID", "UTC_Time", "Account"],
+            index=["User_ID", "id", "Account"],
             columns=["Operation"],
             values=["Change", "Coin"]
         )
         .reset_index()
-        .fillna(0.0)
         .assign(
             date=lambda df: pd.to_datetime(
-                df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
+                df["id"], format="%Y-%m-%d %H:%M:%S"
             ).dt.date,
             exchange_name="binance",
         )
@@ -121,6 +121,7 @@ def solve_swap_2_or_3_rows(df) -> pd.DataFrame:
         }
     )
     result["paid_amount"] *= -1
+    result["paid_taxes_amount"] = result["paid_taxes_amount"].fillna(0)
     result["paid_taxes_amount"] *= -1
 
     return result[SWAP_TABLE_COLS]
@@ -128,11 +129,11 @@ def solve_swap_2_or_3_rows(df) -> pd.DataFrame:
 
 def get_manual_input_needed_timestamps(df: pd.DataFrame, valid_swaps: pd.DataFrame) -> pd.DataFrame:
     df["date"] = pd.to_datetime(
-        df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
+        df["id"], format="%Y-%m-%d %H:%M:%S"
     ).dt.date
-    result = df.query("Operation.isin(@SWAP_CATEGS)").merge(valid_swaps[["UTC_Time"]].drop_duplicates(), how="left", indicator=True).query(
+    result = df.query("Operation.isin(@SWAP_CATEGS)").merge(valid_swaps[["id"]].drop_duplicates(), how="left", indicator=True).query(
         "_merge == 'left_only'"
-    )
+    ).drop(columns=["_merge"])
     return result
 
 
@@ -147,7 +148,7 @@ def get_airdrop_assets(df):
         )
         .assign(
             date=lambda df: pd.to_datetime(
-                df["UTC_Time"], format="%Y-%m-%d %H:%M:%S"
+                df["id"], format="%Y-%m-%d %H:%M:%S"
             ).dt.date,
             paid_taxes_amount=0,
             paid_amount=0,
@@ -162,13 +163,13 @@ def get_airdrop_assets(df):
 
 def solve_binance_convert(df) -> pd.DataFrame:
     convert_ops = df[df["Operation"] == "Binance Convert"]
-    utc_counts = convert_ops["UTC_Time"].value_counts()
+    utc_counts = convert_ops["id"].value_counts()
     valid_utcs = utc_counts[utc_counts == 2].index
-    filtered = convert_ops[convert_ops["UTC_Time"].isin(valid_utcs)]
+    filtered = convert_ops[convert_ops["id"].isin(valid_utcs)]
 
     result = (
         filtered
-        .groupby(["UTC_Time"])
+        .groupby(["id"])
         .apply(lambda g: pd.Series({
             "paid_amount": -g.iloc[0]["Change"] if g.iloc[0]["Change"] < 0 else -g.iloc[1]["Change"],
             "received_amount": g.iloc[0]["Change"] if g.iloc[0]["Change"] > 0 else g.iloc[1]["Change"],
@@ -177,7 +178,7 @@ def solve_binance_convert(df) -> pd.DataFrame:
         }))
         .reset_index()
         .assign(
-            date=lambda df: pd.to_datetime(df["UTC_Time"], format="%Y-%m-%d %H:%M:%S").dt.date,
+            date=lambda df: pd.to_datetime(df["id"], format="%Y-%m-%d %H:%M:%S").dt.date,
             exchange_name="binance",
             paid_taxes_amount=0,
             paid_taxes_currency=None,
@@ -188,27 +189,28 @@ def solve_binance_convert(df) -> pd.DataFrame:
 
 def get_remaining_binance_convert_utcs(df, solved_binance_convert):
     """Return binance convert records that were not parsed and should be checked manually."""
-    all_convert_utcs = set(df[df["Operation"] == "Binance Convert"]["UTC_Time"])
-    parsed_convert_utcs = set(solved_binance_convert["UTC_Time"])
+    all_convert_utcs = set(df[df["Operation"] == "Binance Convert"]["id"])
+    parsed_convert_utcs = set(solved_binance_convert["id"])
     not_parsed_binance_convert = all_convert_utcs - parsed_convert_utcs
-    return df.query("Operation == 'Binance Convert' and UTC_Time.isin(@not_parsed_binance_convert)")
+    return df.query("Operation == 'Binance Convert' and id.isin(@not_parsed_binance_convert)")
 
 
 def get_remaining_records(df, **kwargs):
     """Return the remaining records."""
-    remaining_utcs = set(df["UTC_Time"])
+    remaining_utcs = set(df["id"])
     for _, table in kwargs.items():
-        remaining_utcs -= set(table["UTC_Time"])
-    return df[df["UTC_Time"].isin(remaining_utcs)].reset_index(drop=True)
+        remaining_utcs -= set(table["id"])
+    return df[df["id"].isin(remaining_utcs)].reset_index(drop=True)
 
 
 def parse_binance_report(df):
     """Parse the Binance report and return a dictionary with the relevant data."""
+    df = df.rename(columns={"UTC_Time": "id"})
     steps = [
         ("default_swaps", solve_swap_2_or_3_rows),
         ("earn", get_binance_earn),
         ("airdrops", get_airdrop_assets),
-        ("deposits", get_brl_deposits),
+        ("brl_deposits", get_brl_deposits),
         ("earn_subscription", lambda df: df.query("Operation == 'Simple Earn Flexible Subscription'")),
         ("converts", solve_binance_convert),
         ("withdraws", lambda df: df.query("Operation == 'Withdraw'")),
@@ -231,7 +233,48 @@ def parse_binance_report(df):
 
     all_keys = set()
     for key, table in results.items():
-        all_keys.update(set(table.UTC_Time.unique()))
-    if not (all_keys == set(df.UTC_Time.unique())):
-        raise ValueError(f"Missing keys in results: {set(df.UTC_Time.unique()) - all_keys}")
+        all_keys.update(set(table.id.unique()))
+    if not (all_keys == set(df.id.unique())):
+        raise ValueError(f"Missing keys in results: {set(df.id.unique()) - all_keys}")
     return results
+
+
+def persist_transactions_database(results):
+    swaps = pd.concat(
+        [results["default_swaps"], results["converts"], results["airdrops"]]
+    )
+    earn = results["earn"]
+    brl_deposits = results["brl_deposits"]
+    withdraws = results["withdraws"]
+    manual_inspection = pd.concat([
+        results["manual_input_swaps"],
+        results["remaining_converts"],
+        results["remaining_records"]
+    ])
+
+    persist_dataframe_to_database(swaps, "crypto", "swaps", True)
+    persist_dataframe_to_database(earn, "crypto", "earnings", True)
+    persist_dataframe_to_database(brl_deposits, "crypto", "brl_deposits", True)
+
+
+def read_binance_data(paths: list):
+    data = []
+    for path in paths:
+        data.append(pd.read_csv(path))
+    return pd.concat(data, ignore_index=True)
+
+
+def run(paths=[
+    "/home/ubuntu/finances/raw_data/binance_transactions_2021.csv",
+    "/home/ubuntu/finances/raw_data/binance_transactions_2022.csv",
+    "/home/ubuntu/finances/raw_data/binance_transactions_2023.csv",
+    "/home/ubuntu/finances/raw_data/binance_transactions_2024.csv",
+    "/home/ubuntu/finances/raw_data/binance_transactions_2025_partial.csv"
+]):
+    df = read_binance_data(paths)
+    results = parse_binance_report(df)
+    persist_transactions_database(results)
+
+
+if __name__ == "__main__":
+    run()
