@@ -1,7 +1,22 @@
-"""Methods to parse binance transactions files and parse to DB format.
+"""
+This module provides methods to parse Binance transaction files and convert them to a database-ready format.
 
-Unfortunately, the Binance API does not provide a way to fetch historical trades in its integrity
-(the data comes incomplete), so I decided to download the trades from the Binance website and parse them to the DB format. It's safer. It's possible to retry using the API in the future if needed.
+Due to limitations in the Binance API for fetching complete historical trades, this module
+processes transaction files downloaded from the Binance website. It parses swaps, converts, earnings, airdrops, deposits, and other operations, and prepares them for database insertion.
+
+Main Functions:
+- solve_parseable_swaps: Parses standard swap operations.
+- solve_parseable_binance_convert: Handles Binance Convert operations.
+- get_binance_earn: Extracts staking and earn rewards.
+- get_airdrop_assets: Processes airdrop transactions.
+- get_brl_deposits: Extracts BRL deposit records.
+- parse_binance_report: Orchestrates parsing and returns all relevant tables.
+- persist_transactions_database: Persists parsed data to the database.
+- run: Main entry point for reading, parsing, and persisting Binance transaction data.
+
+Usage:
+    Run this module directly or call the `run()` function with a list of CSV file paths containing
+    Binance transactions.
 """
 
 from datetime import datetime
@@ -9,6 +24,8 @@ from functools import partial
 
 import pandas as pd
 from ..utils import persist_dataframe_to_database
+
+import logging
 
 
 SWAP_CATEGS = ["Transaction Spend", "Transaction Buy", "Transaction Fee"]
@@ -255,7 +272,7 @@ def get_remaining_records(df: pd.DataFrame, **kwargs: pd.DataFrame) -> pd.DataFr
     return df[df["id"].isin(remaining_utcs)].reset_index(drop=True)
 
 
-def parse_binance_report(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+def parse_binance_report(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     """Parse the Binance report and return a dictionary with the relevant data."""
     df = df.rename(columns={"UTC_Time": "id"})
     steps = [
@@ -278,7 +295,7 @@ def parse_binance_report(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
     results["manual_input_swaps"] = get_manual_input_needed_swaps(
         df, results["default_swaps"]
     )
-    results["remaining_converts"] = get_manual_input_needed_converts(
+    results["manual_input_needed_converts"] = get_manual_input_needed_converts(
         df, results["converts"]
     )
 
@@ -292,46 +309,55 @@ def parse_binance_report(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
     return results
 
 
-def persist_transactions_database(results: dict[str, pd.DataFrame]) -> None:
-    """Persist the parsed Binance transactions to the database."""
+def persist_transactions_database(
+    results: dict[str, pd.DataFrame], manual_inspection_path: str
+) -> None:
+    """Persist the parsed Binance transactions to the database with upsert."""
     swaps = pd.concat(
         [results["default_swaps"], results["converts"], results["airdrops"]]
     )
     earn = results["earn"]
     brl_deposits = results["brl_deposits"]
-    withdraws = results["withdraws"]
     manual_inspection = pd.concat(
         [
             results["manual_input_swaps"],
-            results["remaining_converts"],
+            results["manual_input_needed_converts"],
             results["remaining_records"],
         ]
     )
 
-    persist_dataframe_to_database(swaps, "crypto", "swaps", True)
-    persist_dataframe_to_database(earn, "crypto", "earnings", True)
-    persist_dataframe_to_database(brl_deposits, "crypto", "brl_deposits", True)
+    persist_dataframe_to_database(swaps, "crypto", "swaps", True, upsert=True, pk_columns=["id"])
+    persist_dataframe_to_database(earn, "crypto", "earnings", True, upsert=True, pk_columns=["id"])
+    persist_dataframe_to_database(brl_deposits, "crypto", "brl_deposits", True, upsert=True, pk_columns=["id"])
+
+    logging.info(f"Manual inspection needed for {len(manual_inspection)} records.")
+    logging.info(f"Persisting to manual inspection to {manual_inspection_path}")
+    manual_inspection.to_csv(manual_inspection_path, index=False)
 
 
 def read_binance_data(paths: list[str]) -> pd.DataFrame:
+    """Read Binance transaction data from multiple CSV files and concatenate them into a single DataFrame."""
     data = []
     for path in paths:
         data.append(pd.read_csv(path))
     return pd.concat(data, ignore_index=True)
 
 
-def run(
-    paths: list[str] = [
+def run(paths: list[str] | None = None) -> None:
+    """Run the Binance order history parsing and persistence."""
+    paths = [
         "/home/ubuntu/finances/raw_data/binance_transactions_2021.csv",
         "/home/ubuntu/finances/raw_data/binance_transactions_2022.csv",
         "/home/ubuntu/finances/raw_data/binance_transactions_2023.csv",
         "/home/ubuntu/finances/raw_data/binance_transactions_2024.csv",
         "/home/ubuntu/finances/raw_data/binance_transactions_2025_partial.csv",
     ]
-) -> None:
+
+    manual_inspection_path = "/home/ubuntu/finances/binance_manual_inspection.csv"
+
     df = read_binance_data(paths)
     results = parse_binance_report(df)
-    persist_transactions_database(results)
+    persist_transactions_database(results, manual_inspection_path)
 
 
 if __name__ == "__main__":
