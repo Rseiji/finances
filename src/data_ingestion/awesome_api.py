@@ -41,7 +41,8 @@ def get_awesome_close_prices(
 
     url = (
         f"https://economia.awesomeapi.com.br/json/daily/{symbol}/{num_days}/"
-        f"?start_date={start_date}&end_date={end_date}"
+        f"?start_date={start_date.replace("-", "")}
+        f"&end_date={end_date.replace("-", "")}"
     )
 
     try:
