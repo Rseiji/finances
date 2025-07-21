@@ -2,25 +2,25 @@
 CREATE SCHEMA IF NOT EXISTS currencies;
 
 CREATE TABLE currencies.usdbrl (
-    date DATE,
+    date DATE NOT NULL PRIMARY KEY,
     value FLOAT,
     _processed_at TIMESTAMP
 );
 
 CREATE TABLE currencies.jpybrl (
-    date DATE,
+    date DATE NOT NULL PRIMARY KEY,
     value FLOAT,
     _processed_at TIMESTAMP
 );
 
 CREATE TABLE currencies.btcbrl (
-    date DATE,
+    date DATE NOT NULL PRIMARY KEY,
     value FLOAT,
     _processed_at TIMESTAMP
 );
 
 CREATE TABLE currencies.ethbrl (
-    date DATE,
+    date DATE NOT NULL PRIMARY KEY,
     value FLOAT,
     _processed_at TIMESTAMP
 );
