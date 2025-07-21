@@ -1,9 +1,11 @@
 import hashlib
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from functools import partial
 
 import pandas as pd
 import requests
+import os
 
 BASE_URL = "https://api.binance.com/api/v3/"
 
@@ -17,6 +19,12 @@ def get_binance_close_prices(
     **_: dict[str, str] | None
 ) -> list[tuple[str, float]]:
     """Fetch daily close prices for a given symbol between start_str and end_str."""
+    start_date = (
+        datetime.strftime(
+            datetime.strptime(start_date, "%Y-%m-%d")
+            - relativedelta(days=1), "%Y-%m-%d"
+        )
+    )
     response = requests.get(
         os.path.join(BASE_URL, "klines"),
         params={
@@ -27,6 +35,8 @@ def get_binance_close_prices(
             "limit": 1000
         }
     )
+    if not response.json():
+        return
 
     return (
         pd.DataFrame(response.json())[[0, 4]]
