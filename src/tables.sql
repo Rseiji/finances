@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS crypto.swaps (
     paid_taxes_amount DOUBLE PRECISION NOT NULL,
     paid_amount DOUBLE PRECISION NOT NULL,
     received_currency TEXT NOT NULL,
-    paid_taxes_currency TEXT NOT NULL,
-    paid_currency TEXT NOT NULL,
+    paid_taxes_currency TEXT,
+    paid_currency TEXT,
     exchange_name TEXT,
     _processed_at TIMESTAMP
 );

@@ -61,6 +61,7 @@ def ingest_currencies_data_from_last_record(
             schema=table_schema,
             table=table_name,
             assign_processed_at_column=True,
+            pk_columns=["date"]
         )
     else:
         logging.warning(
