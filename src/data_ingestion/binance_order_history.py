@@ -366,6 +366,29 @@ def read_binance_data(paths: list[str]) -> pd.DataFrame:
     return pd.concat(data, ignore_index=True)
 
 
+def get_binance_withdraws(paths: list[str]) -> pd.DataFrame:
+    data = []
+    for path in paths:
+        data.append(pd.read_csv(path, sep=';'))
+    withdraws = (
+        pd.concat(data, ignore_index=True)
+        .rename(columns={
+            "Date(UTC+0)": "date",
+            "Amount": "amount",
+            "Fee": "tax",
+            "Address": "destiny",
+            "Coin": "currency_amount"
+        })
+        .assign(
+            id=lambda df: df["date"].copy(),
+            source="binance",
+            currency_tax=lambda df: df.currency_amount.copy(),
+            date=lambda df: pd.to_datetime(df["date"], format="%y-%m-%d %H:%M:%S").dt.date
+        )
+    )[["id", "date", "amount", "tax", "currency_amount", "currency_tax", "source", "destiny"]]
+    return withdraws
+
+
 def run(paths: list[str] | None = None) -> None:
     """Run the Binance order history parsing and persistence."""
     paths = [
@@ -375,12 +398,22 @@ def run(paths: list[str] | None = None) -> None:
         "/home/ubuntu/finances/raw_data/binance/binance_transactions_2024.csv",
         "/home/ubuntu/finances/raw_data/binance/binance_transactions_202501_202506.csv",
     ]
+    withdraw_paths = [
+        "/home/ubuntu/finances/raw_data/binance/binance_withdraws_2023.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_withdraws_2024.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_withdraws_202501_202506.csv"
+    ]
 
     manual_inspection_path = "/home/ubuntu/finances/binance_manual_inspection.csv"
 
     df = read_binance_data(paths)
     results = parse_binance_report(df)
+    withdraws = get_binance_withdraws(withdraw_paths)
+
     persist_transactions_database(results, manual_inspection_path)
+    persist_dataframe_to_database(
+        withdraws, "crypto", "withdraws", True, upsert=True, pk_columns=["id"]
+    )
 
 
 if __name__ == "__main__":
