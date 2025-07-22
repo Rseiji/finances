@@ -23,12 +23,15 @@ from datetime import datetime
 from functools import partial
 
 import pandas as pd
-from ..utils import persist_dataframe_to_database
+from ..utils import persist_dataframe_to_database, read_sql_query
 
 import logging
 
 
-SWAP_CATEGS = ["Transaction Spend", "Transaction Buy", "Transaction Fee"]
+SWAP_CATEGS = [
+    ["Transaction Spend", "Transaction Buy", "Transaction Fee"],
+    ["Transaction Revenue", "Transaction Fee", "Transaction Sold"]
+]
 SWAP_TABLE_COLS = [
     "id",
     "date",
@@ -96,7 +99,8 @@ def solve_parseable_swaps(df: pd.DataFrame) -> pd.DataFrame:
 def _get_dates_with_clean_swap(df: pd.DataFrame) -> pd.DataFrame:
     """Get dates with clean swaps (2 or 3 rows) from the Binance transactions dataframe."""
     swap_buy_count = (
-        df.query("Operation.isin(@SWAP_CATEGS)")
+        pd.concat([df.query("Operation.isin(@swap_categ)") for swap_categ in SWAP_CATEGS])
+        .drop_duplicates()
         .groupby("id")
         .agg({"Operation": ["nunique", "size"]})
         .reset_index()
@@ -244,7 +248,8 @@ def get_manual_input_needed_swaps(
     """Get timestamps that need manual input for swaps that have more than 3 rows."""
     df["date"] = pd.to_datetime(df["id"], format="%Y-%m-%d %H:%M:%S").dt.date
     result = (
-        df.query("Operation.isin(@SWAP_CATEGS)")
+        pd.concat([df.query("Operation.isin(@swap_categ)") for swap_categ in SWAP_CATEGS])
+        .drop_duplicates()
         .merge(valid_swaps[["id"]].drop_duplicates(), how="left", indicator=True)
         .query("_merge == 'left_only'")
         .drop(columns=["_merge"])
@@ -309,6 +314,24 @@ def parse_binance_report(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     return results
 
 
+def _preprocess_manual_inspection(df: pd.DataFrame) -> pd.DataFrame:
+    categories_to_ignore = [
+        "Simple Earn Flexible Redemption",
+        "Simple Earn Flexible Airdrop",
+        "Staking Purchase",
+    ]
+
+    ids = read_sql_query("SELECT DISTINCT id FROM crypto.manually_inserted_keys")
+
+    df = (
+        df.merge(ids, how='left', indicator=True)
+        .query("_merge == 'left_only' and not (Operation.isin(@categories_to_ignore))")
+        .drop(columns="_merge")
+    )
+
+    return df
+
+
 def persist_transactions_database(
     results: dict[str, pd.DataFrame], manual_inspection_path: str
 ) -> None:
@@ -324,7 +347,7 @@ def persist_transactions_database(
             results["manual_input_needed_converts"],
             results["remaining_records"],
         ]
-    )
+    ).pipe(_preprocess_manual_inspection)
 
     persist_dataframe_to_database(swaps, "crypto", "swaps", True, upsert=True, pk_columns=["id"])
     persist_dataframe_to_database(earn, "crypto", "earnings", True, upsert=True, pk_columns=["id"])
@@ -346,11 +369,11 @@ def read_binance_data(paths: list[str]) -> pd.DataFrame:
 def run(paths: list[str] | None = None) -> None:
     """Run the Binance order history parsing and persistence."""
     paths = [
-        "/home/ubuntu/finances/raw_data/binance_transactions_2021.csv",
-        "/home/ubuntu/finances/raw_data/binance_transactions_2022.csv",
-        "/home/ubuntu/finances/raw_data/binance_transactions_2023.csv",
-        "/home/ubuntu/finances/raw_data/binance_transactions_2024.csv",
-        "/home/ubuntu/finances/raw_data/binance_transactions_2025_partial.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_transactions_2021.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_transactions_2022.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_transactions_2023.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_transactions_2024.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_transactions_202501_202506.csv",
     ]
 
     manual_inspection_path = "/home/ubuntu/finances/binance_manual_inspection.csv"

@@ -82,3 +82,8 @@ CREATE TABLE stocks.transactions (
     current_quantity DOUBLE PRECISION NOT NULL,
     _processed_at TIMESTAMP
 );
+
+CREATE TABLE crypto.manually_inserted_keys (
+    id TEXT NOT NULL,
+    _processed_at TIMESTAMP
+);
