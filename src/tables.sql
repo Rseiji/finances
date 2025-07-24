@@ -25,6 +25,24 @@ CREATE TABLE currencies.ethbrl (
     _processed_at TIMESTAMP
 );
 
+CREATE TABLE currencies.ivvb11brl (
+    date DATE NOT NULL PRIMARY KEY,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
+CREATE TABLE currencies.sp500usd (
+    date DATE NOT NULL PRIMARY KEY,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
+CREATE TABLE currencies.ibovbrl (
+    date DATE NOT NULL PRIMARY KEY,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
 -- CRYPTO
 CREATE SCHEMA crypto;
 

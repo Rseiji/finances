@@ -11,10 +11,14 @@ import logging
 
 from .awesome_api import get_awesome_close_prices
 from .binance_api import get_binance_close_prices
+from .yfinance_api import get_yfinance_close_prices
+from .brasil_api import get_brasil_api_close_prices
 
 PROVIDERS = {
     "awesome": get_awesome_close_prices,
     "binance": get_binance_close_prices,
+    "yfinance": get_yfinance_close_prices,
+    "brasil": get_brasil_api_close_prices,
 }
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
@@ -100,14 +104,15 @@ if __name__ == "__main__":
         description="Fetch and persist currency prices from AwesomeAPI."
     )
     parser.add_argument(
-        "--provider", choices=["awesome", "binance"], default="awesome", help="Data provider to use."
+        "--provider", default="awesome", help="Data provider to use."
     )
     parser.add_argument(
         "--currency", default="USD-BRL:usdbrl", help="Currency pair symbol to fetch."
     )
+    parser.add_argument(
+        "--table", default="", help="Table where to save the data."
+    )
     args = parser.parse_args()
 
     fetch_fn = PROVIDERS[args.provider]
-    ingest_currencies_data_from_last_record(
-        fetch_fn, args.currency, "currencies", args.currency.lower().replace("-", "")
-    )
+    ingest_currencies_data_from_last_record(fetch_fn, args.currency, "currencies", args.table)
