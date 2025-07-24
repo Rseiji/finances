@@ -70,6 +70,12 @@ CREATE TABLE crypto.withdraws (
     _processed_at TIMESTAMP
 );
 
+CREATE TABLE crypto.manually_inserted_keys (
+    id TEXT NOT NULL,
+    _processed_at TIMESTAMP
+);
+
+-- STOCKS
 CREATE SCHEMA stocks;
 
 CREATE TABLE stocks.transactions (
@@ -80,10 +86,16 @@ CREATE TABLE stocks.transactions (
     taxes DOUBLE PRECISION NOT NULL,
     avg_price DOUBLE PRECISION NOT NULL,
     current_quantity DOUBLE PRECISION NOT NULL,
-    _processed_at TIMESTAMP
+    _processed_at TIMESTAMP,
+    PRIMARY KEY (date, ticker, quantity, price)
 );
 
-CREATE TABLE crypto.manually_inserted_keys (
-    id TEXT NOT NULL,
-    _processed_at TIMESTAMP
-);
+create table stocks.dividends_incomes (
+	date DATE NOT NULL,
+	ticker TEXT NOT NULL,
+	type TEXT NOT NULL,
+	source TEXT NOT NULL,
+	value FLOAT,
+	_processed_at TIMESTAMP,
+	PRIMARY KEY (date, ticker, type, source)
+)

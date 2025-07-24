@@ -22,15 +22,12 @@ def calculate_avg_price(df: pd.DataFrame) -> pd.DataFrame:
                 total_cost = avg_price * quantity + p * q + t
                 quantity += q
                 avg_price = total_cost / quantity if quantity > 0 else 0
-                # profit = 0.0
             else:
                 sale_qty = -q
-                # profit = (p - avg_price) * sale_qty
                 quantity -= sale_qty
 
             df.loc[idx, "avg_price"] = avg_price
             df.loc[idx, "current_quantity"] = quantity
-            # df.loc[idx, "profit"] = profit
     return df
 
 
