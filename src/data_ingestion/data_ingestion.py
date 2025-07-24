@@ -1,24 +1,27 @@
 """Fetch and persist currency prices from APIs."""
 
-import requests
-import psycopg2
-from psycopg2 import OperationalError
-from datetime import datetime
-from src.utils import persist_dataframe_to_database, read_sql_query
-import pandas as pd
-from dateutil.relativedelta import relativedelta
 import logging
+from datetime import datetime
+from typing import Any
+
+import pandas as pd
+import psycopg2
+import requests
+from dateutil.relativedelta import relativedelta
+from psycopg2 import OperationalError
+
+from src.utils import persist_dataframe_to_database, read_sql_query
 
 from .awesome_api import get_awesome_close_prices
 from .binance_api import get_binance_close_prices
+from .ipea_api import get_ipea_close_prices
 from .yfinance_api import get_yfinance_close_prices
-from .brasil_api import get_brasil_api_close_prices
 
 PROVIDERS = {
     "awesome": get_awesome_close_prices,
     "binance": get_binance_close_prices,
     "yfinance": get_yfinance_close_prices,
-    "brasil": get_brasil_api_close_prices,
+    "ipea": get_ipea_close_prices,
 }
 
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s: %(message)s')
@@ -29,6 +32,8 @@ def ingest_currencies_data_from_last_record(
     symbol: str,
     table_schema: str,
     table_name: str,
+    start_date: str | None = None,
+    **_: Any,
 ) -> None:
     """Ingest currency data starting from the last record.
 
@@ -47,15 +52,17 @@ def ingest_currencies_data_from_last_record(
     -------
     None
     """
+    if start_date:
+        valid_start_date = datetime.strptime(start_date, "%Y-%m-%d")
+    else:
+        valid_start_date = datetime.strftime(
+            get_last_persisted_data(f"{table_schema}.{table_name}")
+            + relativedelta(days=1), "%Y-%m-%d"
+        )
+
     data = fetch_function(
         symbol=symbol,
-        start_date=datetime.strftime(
-            (
-                get_last_persisted_data(f"{table_schema}.{table_name}")
-                + relativedelta(days=1)
-            ),
-            "%Y-%m-%d",
-        ),
+        start_date=valid_start_date,
         end_date=datetime.now().strftime("%Y-%m-%d"),
     )
 
@@ -112,7 +119,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--table", default="", help="Table where to save the data."
     )
+    parser.add_argument(
+        "--start_date", default=None, help="Date to start parsing the time series."
+    )
     args = parser.parse_args()
 
     fetch_fn = PROVIDERS[args.provider]
-    ingest_currencies_data_from_last_record(fetch_fn, args.currency, "currencies", args.table)
+    ingest_currencies_data_from_last_record(
+        fetch_fn,
+        args.currency,
+        "currencies",
+        args.table,
+        args.start_date
+    )
