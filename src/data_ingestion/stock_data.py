@@ -7,7 +7,7 @@ from src.finances_utils import process_new_trades
 from src.utils import persist_dataframe_to_database, read_sql_query
 
 
-def run() -> None:
+def run_stocks() -> None:
     """Read and insert new stocks data into the database."""
     new_rows = get_google_sheet_data(worksheet_name="stocks", sheet_name="input_finantial_data")
     df_new = _format_stocks_data(pd.DataFrame(new_rows))
@@ -82,5 +82,21 @@ def _get_current_avg_prices() -> pd.DataFrame:
     )
 
 
+def run_dividends() -> None:
+    persist_dataframe_to_database(
+        pd.DataFrame(
+            get_google_sheet_data(
+                worksheet_name="dividend_and_income",
+                sheet_name="input_finantial_data"
+            )
+        ),
+        "stocks",
+        "dividends_incomes",
+        True,
+        pk_columns=["date", "ticker", "type", "source"],
+    )
+
+
 if __name__ == "__main__":
-    run()
+    run_stocks()
+    run_dividends()
