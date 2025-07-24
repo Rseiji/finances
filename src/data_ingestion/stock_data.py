@@ -1,7 +1,10 @@
+import re
+
 import pandas as pd
+
 from src.data_ingestion.google_sheets_automation import get_google_sheet_data
-from src.utils import read_sql_query, persist_dataframe_to_database
 from src.finances_utils import process_new_trades
+from src.utils import persist_dataframe_to_database, read_sql_query
 
 
 def run() -> None:
@@ -31,18 +34,36 @@ def run() -> None:
 
 def _format_stocks_data(stocks: pd.DataFrame) -> pd.DataFrame:
     """Format stocks data to fit in the database."""
-    format_prices_brl = lambda x: x.replace("R$", "").replace(",", ".")
     return (
         stocks.assign(
             date=lambda df: pd.to_datetime(df["date"], format="%d/%m/%Y"),
-            price=lambda df: df["price"].apply(format_prices_brl).astype(float),
-            taxes=lambda df: df["taxes"].apply(format_prices_brl).astype(float)
+            price=lambda df: df["price"].apply(_parse_brl_number).astype(float),
+            taxes=lambda df: df["taxes"].apply(_parse_brl_number).astype(float)
         )
         .sort_values(["ticker", "date"], ascending=True)
     )
 
 
-# TODO: check the case where rebuying a stock after selling everything
+def _parse_brl_number(value: str) -> float:
+    """Parse money columns with varied manual formats of BRL values."""
+    s = str(value).strip()
+    if s in ["R$  -", "R$-", "-", "R$ -"]:
+        return 0.0
+    cleaned = re.sub(r'R\$\s*', '', s)
+    cleaned = re.sub(r'[^\d,.\-]', '', cleaned)
+    if ',' in cleaned and '.' in cleaned:
+        if cleaned.rfind('.') > cleaned.rfind(','):
+            cleaned = cleaned.replace(',', '')
+        else:
+            cleaned = cleaned.replace('.', '').replace(',', '.')
+    else:
+        cleaned = cleaned.replace(',', '.')
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0.0
+
+
 def _get_current_avg_prices() -> pd.DataFrame:
     """Return current average prices of each stock ticker in the database."""
     return read_sql_query(
