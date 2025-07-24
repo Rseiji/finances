@@ -49,6 +49,13 @@ CREATE TABLE currencies.cdi_prc (
     _processed_at TIMESTAMP
 );
 
+CREATE TABLE currencies.ifixbrl (
+    date DATE NOT NULL PRIMARY KEY,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
+
 -- CRYPTO
 CREATE SCHEMA crypto;
 
