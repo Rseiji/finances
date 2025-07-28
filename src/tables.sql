@@ -25,6 +25,12 @@ CREATE TABLE currencies.ethbrl (
     _processed_at TIMESTAMP
 );
 
+CREATE TABLE currencies.solbrl (
+    date DATE NOT NULL PRIMARY KEY,
+    value FLOAT,
+    _processed_at TIMESTAMP
+);
+
 CREATE TABLE currencies.ivvb11brl (
     date DATE NOT NULL PRIMARY KEY,
     value FLOAT,
@@ -54,6 +60,15 @@ CREATE TABLE currencies.ifixbrl (
     value FLOAT,
     _processed_at TIMESTAMP
 );
+
+CREATE TABLE currencies.quotations (
+    date DATE NOT NULL,
+    asset TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    value FLOAT,
+    _processed_at TIMESTAMP,
+    PRIMARY KEY (date, asset, currency)
+)
 
 
 -- CRYPTO
@@ -129,4 +144,12 @@ create table stocks.dividends_incomes (
 	value FLOAT,
 	_processed_at TIMESTAMP,
 	PRIMARY KEY (date, ticker, type, source)
+)
+
+create table stocks.allocations (
+    year_month date,
+    macroallocation text,
+    value float,
+    _processed_at TIMESTAMP,
+    PRIMARY KEY (year_month, macroallocation)
 )
