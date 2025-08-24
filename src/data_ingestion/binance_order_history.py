@@ -78,6 +78,19 @@ def solve_parseable_swaps(df: pd.DataFrame) -> pd.DataFrame:
         "_".join(col).strip("_") if isinstance(col, tuple) else col
         for col in result.columns.values
     ]
+    result["Change_Transaction Buy"] = result["Change_Transaction Buy"].fillna(
+        result["Change_Transaction Revenue"]
+    )
+    result["Change_Transaction Spend"] = result["Change_Transaction Spend"].fillna(
+        result["Change_Transaction Sold"]
+    )
+
+    result["Coin_Transaction Buy"] = result["Coin_Transaction Buy"].fillna(
+        result["Coin_Transaction Revenue"]
+    )
+    result["Coin_Transaction Spend"] = result["Coin_Transaction Spend"].fillna(
+        result["Coin_Transaction Sold"]
+    )
 
     result = result.rename(
         columns={
@@ -120,10 +133,11 @@ def _get_dates_with_clean_swap(df: pd.DataFrame) -> pd.DataFrame:
 def solve_parseable_binance_convert(df: pd.DataFrame) -> pd.DataFrame:
     """Get Binance Convert swap operations."""
     convert_ops = df[df["Operation"] == "Binance Convert"]
+    if convert_ops.empty:
+        return pd.DataFrame(columns=["id"])
     utc_counts = convert_ops["id"].value_counts()
     valid_utcs = utc_counts[utc_counts == 2].index
     filtered = convert_ops[convert_ops["id"].isin(valid_utcs)]
-
     result = (
         filtered.groupby(["id"])
         .apply(
@@ -397,11 +411,13 @@ def run(paths: list[str] | None = None) -> None:
         "/home/ubuntu/finances/raw_data/binance/binance_transactions_2023.csv",
         "/home/ubuntu/finances/raw_data/binance/binance_transactions_2024.csv",
         "/home/ubuntu/finances/raw_data/binance/binance_transactions_202501_202506.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_transactions_202507.csv",
     ]
     withdraw_paths = [
         "/home/ubuntu/finances/raw_data/binance/binance_withdraws_2023.csv",
         "/home/ubuntu/finances/raw_data/binance/binance_withdraws_2024.csv",
-        "/home/ubuntu/finances/raw_data/binance/binance_withdraws_202501_202506.csv"
+        "/home/ubuntu/finances/raw_data/binance/binance_withdraws_202501_202506.csv",
+        "/home/ubuntu/finances/raw_data/binance/binance_withdraws_202507.csv"
     ]
 
     manual_inspection_path = "/home/ubuntu/finances/binance_manual_inspection.csv"

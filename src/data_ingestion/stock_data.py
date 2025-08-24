@@ -99,4 +99,5 @@ def run_dividends() -> None:
 
 if __name__ == "__main__":
     run_stocks()
-    run_dividends()
+    # run_dividends()
+    # run_allocations()
